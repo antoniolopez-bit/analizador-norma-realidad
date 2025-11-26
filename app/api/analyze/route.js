@@ -97,22 +97,38 @@ export async function POST(req) {
 
     const combinedText = parts.join("\n\n\n");
 
-    const baseInstructions = `
-Eres un asistente experto en análisis de políticas públicas y derecho constitucional.
-Tu tarea es ayudar a analizar el vínculo entre el Estado y sus ciudadanos a partir de:
-- dos constituciones (una más vieja y una más nueva),
-- normas posteriores a la nueva constitución,
-- estadísticas oficiales antes y después de la reforma,
-- e informes de organismos internacionales previos y posteriores.
+    const baseInstructions =
+      "Eres un asistente experto en análisis de políticas públicas y derecho constitucional.\n" +
+      "Tu tarea es analizar el vínculo entre el Estado y sus ciudadanos a partir de: dos constituciones (vieja/nueva),\n" +
+      "normas posteriores a la nueva constitución, estadísticas oficiales antes y después de la reforma e informes de organismos internacionales previos y posteriores.\n\n" +
+      "Debes identificar coherencias, brechas y tensiones entre la prescripción normativa y los resultados empíricos,\n" +
+      "poniendo especial atención a las dimensiones de derechos sociales, derechos civiles y políticos y derechos de economía/propiedad.\n\n" +
+      "Cuando el usuario no especifique otra cosa, produce un informe sintético de 5–8 párrafos en tono académico.";
 
-Debes identificar coherencias, brechas y tensiones entre la prescripción normativa y los resultados empíricos,
-poniendo especial atención a las dimensiones de:
-- Derechos sociales
-- Derechos civiles y políticos
-- Derechos de economía y propiedad
+    const finalInstructions =
+      userInstructions && userInstructions.trim().length > 0
+        ? baseInstructions +
+          "\n\nInstrucciones adicionales del usuario:\n" +
+          userInstructions
+        : baseInstructions;
 
-Cuando el usuario no especifique otra cosa, produce un informe sintético de 5–8 párrafos, en tono académico, que incluya:
-1) Una caracterización general de las dos constituciones y del tipo de Estado que proponen.
-2) El modo en que las normas posteriores desarrollan, refuerzan o contradicen ese marco constitucional.
-3) Un análisis comparado de las estadísticas oficiales antes y después de la nueva constitución.
-4) Un contraste entre las estadísticas oficiales y los informes de organi
+    const response = await client.responses.create({
+      model: "gpt-4o-mini",
+      instructions: finalInstructions,
+      input:
+        "A continuación tienes el contenido combinado de las constituciones, normas, estadísticas oficiales e informes internacionales cargados por el usuario. " +
+        "Analízalos según las instrucciones anteriores.\n\n" +
+        combinedText,
+    });
+
+    const resultText = response.output_text ?? "No se obtuvo texto del modelo.";
+
+    return NextResponse.json({ result: resultText });
+  } catch (err) {
+    console.error("Error en /api/analyze:", err);
+    return NextResponse.json(
+      { error: "Error interno al procesar los PDF o llamar a OpenAI." },
+      { status: 500 }
+    );
+  }
+}
